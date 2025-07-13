@@ -1,0 +1,68 @@
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: {{ .Values.networks.subnet1.name}}
+  namespace: default
+spec:
+  config: {{ .Values.networks.subnet1.config | toJson | quote }}
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: {{ .Values.networks.subnet2.name}}
+  namespace: default
+spec:
+  config: {{ .Values.networks.subnet2.config | toJson | quote }}
+---
+apiVersion: v1
+kind: Job
+metadata:
+  name: create-bridge
+spec:
+  template:
+    spec:
+      hostNetwork: true
+      nodeSelector: 
+        kubernetes.io/hostname: {{ .Values.node.name}}
+    containers:
+    - name: create-bridge
+      image: busybox
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          {{ - range .Values.networks }}
+          ip link add name {{ .config.bridge }} type bridge
+          ip link set {{ .config.bridge }} up
+          {{- end }}
+      securityContext:
+        privileged: true
+    restartPolicy: Never
+  backoffLimit: 0
+---
+apiVersion: v1
+kind: Job
+metadata:
+  name: delete-bridge
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.node.name }}
+      containers:
+      - name: delete-bridge
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            {{ - range .Values.networks }}
+            ip link set {{ .config.bridge }} down || true;
+            ip link delete {{ .config.bridge }} || true;
+            {{ - end }}
+        securityContext:
+          privileged: true
+      restartPolicy: Never
+  backoffLimit: 0

@@ -1,0 +1,41 @@
+node:
+  name: k8snode1
+hosta:
+  name: host-a
+  image: nicolaka/netshoot
+
+hostb:
+  name: host-b
+  image: nicolaka/netshoot
+
+router:
+  name: demo-test-router
+  image: nicolaka/netshoot
+  networks:
+    - name: subnet1
+      interface: net1
+      ips: []
+    - name: subnet2
+      interface: net2
+      ips: []
+
+networks:
+  subnet1:
+    name: subnet1
+    config:
+      cniVersion: "0.3.1"
+      type: bridge
+      bridge: br10-0-1
+      ipam: []
+  subnet2:
+    name: subnet2
+    config:
+      cniVersion: "0.3.1"
+      type: bridge
+      bridge: br10-0-2
+      ipam: []
+
+
+
+
+
