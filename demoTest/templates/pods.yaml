@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Values.hosta.name }}
+  labels:
+    app: {{ .Values.hosta.name }}
+  annotations:
+    k8s.v1.cni.cncf.io/networks: |
+    - name: {{ .Values.networks.subnet1.name }}
+      interface: net1
+      ips: []
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: {{ .Values.node.name }}
+  containers:
+    - name: {{ .Values.hosta.name }}
+      image: {{ .Values.hosta.image }}
+      command: ["/bin/bash", "-c", "sleep infinity"]
+      securityContext:
+        privileged: true
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Values.hostb.name }}
+  labels:
+    app: {{ .Values.hostb.name }}
+  annotations:
+    k8s.v1.cni.cncf.io/networks: |
+    - name: {{ .Values.networks.subnet2.name }}
+      interface: net1
+      ips: []
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: {{ .Values.node.name }}
+  containers:
+    - name: {{ .Values.hostb.name }}
+      image: {{ .Values.hostb.image }}
+      command: ["/bin/bash", "-c", "sleep infinity"]
+      securityContext:
+        privileged: true
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Values.router.name }}
+  labels:
+    app: {{ .Values.router.name }}
+  securityContext:
+    sysctls:
+      - name: net.ipv4.conf.net1.rp_filter
+        value: "0"
+      - name: net.ipv4.conf.all.rp_filter
+        value: "0"
+      - name: net.ipv4.conf.default.rp_filter
+        value: "0"
+      - name: net.ipv4.ip_forward
+        value: "1"
+  annotations:
+    k8s.v1.cni.cncf.io/networks: |
+    [
+      {{- $index := 0 }}
+      {{- range $key, $net := .Values.networks }}
+        {{- if $index }},{{ end }}
+        { "name": "{{ $net.name }}", "interface": "net{{ add $index 1 }}" }
+        {{- $index = add $index 1 }}
+      {{- end }}
+    ]
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: {{ .Values.node.name }}
+  containers:
+    - name: {{ .Values.router.name }}
+      image: {{ .Values.router.image }}
+      command: ["/bin/bash", "-c", "sleep infinity"]
+      securityContext:
+        privileged: true
+

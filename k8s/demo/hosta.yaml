@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-host-a
+  labels:
+    app: host-a
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: demo-host-a
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: demo-host-a
+      annotations:
+        k8s.v1.cni.cncf.io/networks: |
+          [
+           {
+             "name": "subnet1",
+             "interface": "net1",
+             "ips": ["10.0.1.2"]
+           }
+          ]
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: k8snode1
+      terminationGracePeriodSeconds: 10
+      restartPolicy: Always
+      securityContext:
+        sysctls:
+        - name: net.ipv4.conf.net1.rp_filter
+          value: "0"
+        - name: net.ipv4.conf.all.rp_filter
+          value: "0"
+        - name: net.ipv4.conf.default.rp_filter
+          value: "0"
+      volumes:
+      - name: demo-volume
+        hostPath:
+          path: /tmp
+          type: Directory
+      containers:
+      - name: host-a
+        image:  nicolaka/netshoot
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            ip route del default || true
+            ip route add default via 10.0.1.254 dev net1
+            sleep 3600
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN","NET_RAW"]
+        volumeMounts:
+        - name: demo-volume
+          mountPath: /tmp
