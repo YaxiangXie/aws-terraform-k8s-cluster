@@ -116,7 +116,7 @@ module "ec2_sg" {
   source = "terraform-aws-modules/security-group/aws"
 
   name        = "demo_sg"
-  description = "Security group for Demo"
+  description = "Security group for SSH + NodePort"
   vpc_id      = aws_vpc.demo-vpc.id
 
   ingress_cidr_blocks = ["0.0.0.0/0"]
@@ -130,6 +130,13 @@ module "ec2_sg" {
       to_port     = 6443
       protocol    = "tcp"
       description = "Allow Kubernetes API Server"
+      cidr_block = "0.0.0.0/0"
+    },
+    {
+      from_port   = 30000
+      to_port     = 32767
+      protocol    = "tcp"
+      description = "K8s NodePort Services"
       cidr_block = "0.0.0.0/0"
     }
 
@@ -209,6 +216,26 @@ module "ec2_k8s_node" {
   private_key            = var.private_key
 
 }
+
+module "ec2_k8s_node2" {
+  source = "./modules/ec2_k8s_node"
+  name                   = "k8s-node3"
+  ami                    = data.aws_ami.ubuntu.id
+  subnet_id              = aws_subnet.demo-subnet-1.id
+  private_ip             = "192.0.1.12"
+  worker_number          = 3
+  instance_type          = "t3.medium"
+  volume_size            = 30 
+
+  # default instance type
+  iam_instance_profile   = data.aws_iam_instance_profile.ec2-role-demo.name
+  security_group_ids     = [module.demo-ssh-sg.security_group_id, module.ec2_sg.security_group_id]
+  access_key             = var.access_key
+  private_key            = var.private_key
+
+}
+
+
 
 
 

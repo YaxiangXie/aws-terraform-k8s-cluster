@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ######## For Master Node ########
-hostname k8snode${worker_number}
-echo k8snode${worker_number} > /etc/hostname
-hostnamectl set-hostname k8snode${worker_number}
+hostname k8s-node${worker_number}
+echo k8s-node${worker_number} > /etc/hostname
+hostnamectl set-hostname k8s-node${worker_number}
 
 
 export AWS_ACCESS_KEY_ID=${access_key}
@@ -14,9 +14,6 @@ apt-get update -y
 sudo resize2fs /dev/nvme0n1p1
 timedatectl set-timezone Asia/Taipei
 
-
-# 關閉 selinux 
-sed -i 's/enforcing/disabled/' /etc/selinux/semanage.conf
 # 關閉 swap
 swapoff -a  
 sed -ri 's/.*swap.*/#&/' /etc/fstab
@@ -75,6 +72,11 @@ export ipaddr=`ip address|grep eth0|grep inet|awk -F ' ' '{print $2}' |awk -F '/
 curl -fsSL https://tailscale.com/install.sh | sh
 tailscale up --authkey tskey-auth-kVcSDLXzg511CNTRL-NBKiDsyPMj8jxkCMuzBRj8M6CoN3ubYA1
 
+export tailscale_ip=$(ip -4 addr show tailscale0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+
+iptables -t nat -A PREROUTING -d $ipaddr -p tcp -j DNAT --to-destination $tailscale_ip
+
+
 
 if [ -f /etc/kubernetes/kubelet.conf ]; then
   echo "[INFO] 此節點可能已經加入過 Cluster，跳過 Join。"
@@ -95,7 +97,7 @@ sysctl --system
 # chmod +x /tmp/join_command.sh
 # bash /tmp/join_command.sh
 
-kubeadm join 100.110.24.114:6443 --token 8qdsgo.iy40tehjprc352qm --discovery-token-ca-cert-hash sha256:6907be8b69e1c9dc99c0c6e6e447a36abf9dad3abe3a87f8e2e48000b4384ce1 
+kubeadm join 100.110.24.114:6443 --token 8qdsgo.iy40tehjprc35xxxx --discovery-token-ca-cert-hash sha256:6907be8b69e1c9dc99c0c6e6e447a36abf9dad3abe3a87f8e2xxxxxx
 
 sysctl --system
 

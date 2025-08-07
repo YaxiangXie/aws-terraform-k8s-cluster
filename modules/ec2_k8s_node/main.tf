@@ -29,4 +29,13 @@ resource "aws_instance" "this" {
     },
     var.extra_tags
     )
+
+    
+    lifecycle {
+        ignore_changes = [
+            user_data, 
+            associate_public_ip_address
+        ]
+        prevent_destroy = true
+    }
 }
