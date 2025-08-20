@@ -3,8 +3,8 @@ pipeline{
 
     environment {
         project_name = "clsn-demo"
-        harborUser = 'ants'
-        harborPassword = 'your_harbor_password'
+        TG_BOT_TOKEN = credentials('tg-bot-token')
+        TG_CHAT_ID = credentials('tg-chat-id')
     }
 
     stages{
@@ -34,6 +34,8 @@ pipeline{
                             docker tag ${project_name}:latest 203.64.95.35:8853/library/${project_name}:latest
                             echo ${HARBOR_PASSWORD} | docker login 203.64.95.35:8853 -u ${HARBOR_USERNAME} --password-stdin
                             docker push 203.64.95.35:8853/library/${project_name}:latest
+                            docker rmi 203.64.95.35:8853/library/${project_name}:latest
+                            docker rmi ${project_name}:latest
                         '''
                     }
                 }
@@ -45,5 +47,24 @@ pipeline{
                 echo "notify target server through Publish Over SSH"
             }
         }
+
     }
+    post {
+    success{
+        sh '''
+            curl -s -X POST https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage \
+            -d chat_id=${TG_CHAT_ID} \
+            -d text="Pipeline succeeded: ${project_name}"
+        '''
+    }
+
+    failure{
+        sh '''
+            curl -s -X POST https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage \
+            -d chat_id=${TG_CHAT_ID} \
+            -d text="Pipeline failed: ${project_name}"
+        '''
+    }
+
+}
 }
