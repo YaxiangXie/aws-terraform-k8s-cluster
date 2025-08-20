@@ -2,9 +2,11 @@ pipeline{
     agent any
     stages{
         stage('拉取 Git 倉庫代碼'){
-            steps{
-                echo "pull Git repository code"
-            }
+            git(
+                url: 'http://140.133.76.188/clsrebuild/terraform_k8s.git',
+                branch: 'main',
+                credentialsId: '1',
+            )
         }
         
         stage('通過 Dockerfile 建立自訂義的 image'){
