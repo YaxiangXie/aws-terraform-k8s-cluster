@@ -7,7 +7,7 @@ COPY . /opt/
 WORKDIR /tmp
 
 RUN apt-get update && \
-    apt-get install -y unzip curl vim  && \
+    apt-get install -y unzip curl vim sudo  && \
     curl -fsSL -o terraform.zip https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     unzip terraform.zip && \
     sudo mv terraform /usr/local/bin/ && \
