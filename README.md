@@ -1,93 +1,116 @@
-# Terraform_k8s
+# Auto Deployment Kubernetes Cluster in AWS with Terraform
 
+本專案使用 **Terraform** 自動化建立 AWS 上的 Kubernetes 叢集，  
+包含 **VPC、子網路、EC2 節點、Security Group** 等資源，不受限於 EKS 服務限制，  
+並可選擇安裝基本套件 (如 Helm、CNI)。  
 
+---
 
-## Getting started
+## 專案特色
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- 使用 IaC 工具 **Terraform** 管理 AWS 資源  
+- 自動建立 Kubernetes **Master / Worker Node** 的 EC2 節點  
+- 彈性使用 Kubernetes 原生功能，不受 EKS 限制  
+- 可整合 **Helm** 自動化部署特定應用環境  
+- 支援 **Tailscale VPN**，跨雲串接本地端叢集 (如 PVE、On-Prem K8s) (選用)  
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
+## 前置需求
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+1. [Terraform](https://developer.hashicorp.com/terraform/downloads)  
+2. [AWS CLI](https://docs.aws.amazon.com/cli/)  
+   - 需先設定使用者 Auth Token 環境變數  
+3. Kubernetes Cluster (選擇以下兩種方式)  
+   - 本地端已部署之 K8s Cluster，並加入 EC2 作為 Worker Node  
+   - 直接於 AWS 上建立 Kubernetes Cluster  
+4. [Helm](https://helm.sh/) (選用)  
+5. Harbor (選用) – 私有容器倉庫  
 
-```
-cd existing_repo
-git remote add origin http://140.133.76.188/clsrebuild/terraform_k8s.git
-git branch -M main
-git push -uf origin main
-```
+---
 
-## Integrate with your tools
+## AWS 基礎設置 (可自行調整)
 
-- [ ] [Set up project integrations](http://140.133.76.188/clsrebuild/terraform_k8s/-/settings/integrations)
+- **Region** : `ap-northeast-1`  
+- **AMI** : Ubuntu  
+- **VPC** :  
+  - `cidr_block`: `192.0.0.0/16`  
+- **Subnet** :  
+  - `cidr_block`: `192.0.1.0/24`  
+- **Security Group (ec2-sg)** : 開放 Port  
+  - `80` – HTTP  
+  - `443` – HTTPS  
+  - `6443` – K8s API Server  
+  - `30000–32767` – K8s NodePort Service  
 
-## Collaborate with your team
+---
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### EC2 Master Node
 
-## Test and Deploy
+- **Module** : `ec2_k8s_master`  
+- **Path** : `./modules/ec2_k8s_master`  
+- **AMI** : Ubuntu  
+- **Instance Type** : `t3.medium` (最低需求)  
+- **Volume Size** : 30GB (最低需求)  
+- 其他設置可參考 `ec2_k8s_master` 模組內說明  
 
-Use the built-in continuous integration in GitLab.
+---
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### EC2 Worker Node
 
-***
+- **Module** : `ec2_k8s_node`  
+- **Path** : `./modules/ec2_k8s_worker`  
+- **AMI** : Ubuntu  
+- **Instance Type** : `t3.medium` (最低需求)  
+- **Volume Size** : 30GB (最低需求)  
+- **worker_number** : Worker Node Tag (自訂義)  
+- 其他設置可參考 `ec2_k8s_node` 模組內說明  
 
-# Editing this README
+---
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Helm Charts
 
-## Suggestions for a good README
+### helm-ssh
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+#### 介紹
+透過 Helm Chart 部署一組完整的網路實驗環境，包含:  
+1. **NetworkAttachmentDefinition** : 使用 Multus CNI 建立多網卡支援  
+2. **Bridge Job** : 自動於節點上建立/刪除 Linux Bridge，模擬 Switch  
+3. **Pod 節點** : 具備 SSH 服務的 Pod，可用於下載/客製化靶機環境，並遠端操作  
+4. **Router 節點** : 與 Pod 相似，但具備多張虛擬網卡與 IP Forwarding 功能  
+5. **Service** : 使用 NodePort 型態，為每個 Pod 的 SSH 服務分配 Port  
 
-## Name
-Choose a self-explaining name for your project.
+*請自行客製化具備 SSH 服務的容器映像檔*
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+#### 適合應用
+- 網路安全演練 (防火牆、網路隔離、攻防演練)  
+- 輕量化 CLI 環境，降低資源消耗  
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+---
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### helm-novnc
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+#### 介紹
+透過 Helm Chart 部署 **noVNC** 服務，提供使用者透過瀏覽器直接存取遠端桌面，包含:  
+1. **noVNC 前端** : HTML5 + JavaScript 客戶端，僅需瀏覽器即可使用  
+2. **websockify Proxy** : 將 WebSocket 流量轉換為 VNC 協定  
+3. **VNC Server 容器** : 提供後端桌面環境 (LXDE / XFCE 等輕量 UI)  
+4. **Service** : 使用 NodePort 型態，為每個 Pod 的 VNC 服務分配 Port (預設 5901)  
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+*請自行客製化具備 noVNC 服務的容器映像檔*
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+#### 適合應用
+- 需要 GUI 的網路/資安演練 (如 Wireshark、瀏覽器操作)  
+- 提供學員圖形化靶機環境 (GUI-based target machine)  
+- 簡化遠端存取流程，無需額外安裝 VNC Client  
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+---
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## 延伸應用
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+- 可與 **Harbor** 整合，建立私有容器倉庫  
+- 搭配 **CI/CD Pipeline**，實現自動化部署/清理  
+- 適用於 **混合雲環境** (AWS + PVE Cluster)，進行跨雲網路實驗  
+- 支援 **多種 CNI Plugin** 測試 (Calico、Flannel、Multus)  
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+---

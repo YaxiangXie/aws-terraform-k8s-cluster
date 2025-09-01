@@ -70,7 +70,8 @@ export ipaddr=`ip address|grep eth0|grep inet|awk -F ' ' '{print $2}' |awk -F '/
 
 # 加入 Tailscale VPN
 curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up --authkey tskey-auth-kVcSDLXzg511CNTRL-NBKiDsyPMj8jxkCMuzBRj8M6CoN3ubYA1
+# tailcale vpn!! 
+#tailscale up --authkey tskey-auth-kVcSDLXzg511CNTRL-NBKiDsyPMj8jxkCMuzBRj8M6CoN3ubYA1
 
 export tailscale_ip=$(ip -4 addr show tailscale0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
 
@@ -97,7 +98,9 @@ sysctl --system
 # chmod +x /tmp/join_command.sh
 # bash /tmp/join_command.sh
 
-kubeadm join 100.110.24.114:6443 --token 8qdsgo.iy40tehjprc35xxxx --discovery-token-ca-cert-hash sha256:6907be8b69e1c9dc99c0c6e6e447a36abf9dad3abe3a87f8e2xxxxxx
+
+## kubeadm join command
+# kubeadm join 100.110.24.114:6443 --token 8qdsgo.iy40tehjprc35xxxx --discovery-token-ca-cert-hash sha256:6907be8b69e1c9dc99c0c6e6e447a36abf9dad3abe3a87f8e2xxxxxx
 
 sysctl --system
 
@@ -110,5 +113,4 @@ systemctl daemon-reload
 systemctl restart kubelet
 
 
-echo "203.64.95.35  harbor.antslab.local" | sudo tee -a /etc/hosts
 

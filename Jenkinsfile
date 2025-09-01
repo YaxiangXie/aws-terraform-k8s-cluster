@@ -11,7 +11,7 @@ pipeline{
         stage('拉取 Git 倉庫代碼'){
             steps{
                 git(
-                url: 'http://140.133.76.188/clsrebuild/terraform_k8s.git',
+                url: 'http://{gitlab-url}/clsrebuild/terraform_k8s.git',
                 branch: 'main',
                 credentialsId: '1',
              )
@@ -31,10 +31,10 @@ pipeline{
                 timeout(time: 3, unit: 'MINUTES'){
                     withCredentials([usernamePassword(credentialsId: 'harbor-credentials', passwordVariable: 'HARBOR_PASSWORD', usernameVariable: 'HARBOR_USERNAME')]) {
                         sh '''
-                            docker tag ${project_name}:latest 203.64.95.35:8853/library/${project_name}:latest
-                            echo ${HARBOR_PASSWORD} | docker login 203.64.95.35:8853 -u ${HARBOR_USERNAME} --password-stdin
-                            docker push 203.64.95.35:8853/library/${project_name}:latest
-                            docker rmi 203.64.95.35:8853/library/${project_name}:latest
+                            docker tag ${project_name}:latest harbor/library/${project_name}:latest
+                            echo ${HARBOR_PASSWORD} | docker login harbor -u ${HARBOR_USERNAME} --password-stdin
+                            docker push harbor/library/${project_name}:latest
+                            docker rmi harbor/library/${project_name}:latest
                             docker rmi ${project_name}:latest
                         '''
                     }
