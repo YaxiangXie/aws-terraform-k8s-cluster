@@ -1,0 +1,67 @@
+{{- range $key, $net := .Values.networks }}
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: {{ $net.name }}
+  namespace: default
+spec:
+  config: {{ $net.config | toJson | quote }}
+---
+{{- end }}
+
+# 建立 bridge 的 Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-bridge
+spec:
+  template:
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.node.name }}
+      containers:
+        - name: create-bridge
+          image: busybox
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              {{- range $key, $net := .Values.networks }}
+              ip link add name {{ $net.config.bridge }} type bridge
+              ip link set {{ $net.config.bridge }} up
+              {{- end }}
+          securityContext:
+            privileged: true
+      restartPolicy: Never
+  backoffLimit: 0
+
+---
+
+# 刪除 bridge 的 Job（Helm pre-delete hook）
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: delete-bridge
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/hostname: {{ .Values.node.name }}
+      containers:
+        - name: delete-bridge
+          image: busybox
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              {{- range $key, $net := .Values.networks }}
+              ip link set {{ $net.config.bridge }} down || true
+              ip link delete {{ $net.config.bridge }} || true
+              {{- end }}
+          securityContext:
+            privileged: true
+      restartPolicy: Never
+  backoffLimit: 0

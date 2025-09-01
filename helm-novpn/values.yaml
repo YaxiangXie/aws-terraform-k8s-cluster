@@ -1,0 +1,79 @@
+node:
+  name: k8s-node2
+
+networks:
+  - name: sw1
+    config:
+      cniVersion: "0.3.1"
+      type: bridge
+      bridge: br-sw1
+      ipam:
+        type: host-local
+        subnet: 10.10.1.0/24
+  - name: sw2
+    config:
+      cniVersion: "0.3.1"
+      type: bridge
+      bridge: br-sw2
+      ipam:
+        type: host-local
+        subnet: 10.10.2.0/24
+  - name: sw3
+    config:
+      cniVersion: "0.3.1"
+      type: bridge
+      bridge: br-sw3
+      ipam:
+        type: host-local
+        subnet: 10.10.3.0/24
+  - name: sw4
+    config:
+      cniVersion: "0.3.1"
+      type: bridge
+      bridge: br-sw4
+      ipam:
+        type: host-local
+        subnet: 10.10.4.0/24
+
+pods:
+  - name: h5
+    image: 203.64.95.35:8853/clsn/kali-novnc:v1
+    networks: 
+      - name: sw1
+        iface: eth1
+  - name: h13
+    image: 203.64.95.35:8853/clsn/wordpress-novnc:v1
+    networks: 
+      - name: sw2
+        iface: eth1
+  - name: h8
+    image: 203.64.95.35:8853/clsn/ubuntu-novnc:v1
+    networks: 
+      - name: sw3
+        iface: eth1
+  - name: h10
+    image: 203.64.95.35:8853/clsn/mysql-novnc:v1
+    networks:
+      - name: sw4
+        iface: eth1
+  - name: h12
+    image: 203.64.95.35:8853/clsn/ftp-novnc:v1
+    networks: 
+      - name: sw3
+        iface: eth1
+
+routers:
+  - name: r0
+    image: 203.64.95.35:8853/clsn/ubuntu-novnc:v1
+    networks:
+      - name: sw1
+        iface: net1
+      - name: sw2
+        iface: net2
+  - name: r11
+    image: 203.64.95.35:8853/clsn/ubuntu-novnc:v1
+    networks:
+      - name: sw2
+        iface: net1
+      - name: sw3
+        iface: net3
